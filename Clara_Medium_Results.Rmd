@@ -1,0 +1,157 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+3.  Medium dataset - ***Adult***
+
+Dataset info: <https://www.kaggle.com/datasets/mlbysoham/adult-dataset>
+
+Size: 4MB, (32561 x 15)
+
+```{r}
+# Library imports
+
+library(cluster)
+library(factoextra)
+library(utils)
+library(ClusterR)
+library(microbenchmark)
+
+```
+
+```{r}
+# Loading the dataset and preview of the data
+
+data1 <- read.csv('Datasets/adult.csv')
+
+dim(data1)
+
+head(data1, 10)
+```
+
+```{r}
+# Adapt data
+df <- data1[c(1, 3)]
+head(df, 10)
+# Find optimal number of clusters
+
+fviz_nbclust(head(df, 5000), clara, method = "silhouette")
+```
+
+```{r}
+# Apply CLARA
+
+# Variable parameters
+clusterNr <- 6
+samples <- 5000
+sampSize <- 200
+
+cl.res <- clara(df, clusterNr, metric = 'manhattan', samples = samples, pamLike = TRUE)
+```
+
+```{r}
+# Plot of CLARA clustering on 'adult'
+
+fviz_cluster(cl.res, geom = "point", repel = TRUE, show.clust.cent = TRUE, ellipse.type = "t", pointsize = 1, ggtheme = theme_classic()) +
+labs(title= "Clara - Medium Dataset") + 
+xlab("Age") +
+ylab("Income")
+```
+
+```{r}
+# Apply kmeans
+
+km.res <- kmeans(df, 6)
+
+fviz_cluster(km.res, df, geom = "point", repel = TRUE, show.clust.cent = TRUE, ellipse.type = "t", pointsize = 1, ggtheme = theme_classic()) +
+labs(title= "Kmeans - Medium dataset") + 
+xlab("Age") +
+ylab("Income")
+```
+
+```{r}
+# Measure the running time using microbenchmark
+
+result <- microbenchmark(
+  clara(df, clusterNr, samples = 3000, pamLike = TRUE),
+  kmeans(df, clusterNr),
+  times = 5
+)
+
+print(result)
+boxplot(result, names=c('clara', 'kmeans'))
+```
+
+-   Seems that again kmeans performs better here. Let's try applying the same functions to multiple rows and multiple numbers of clusters.\
+
+```{r}
+# Apply CLARA again with more data
+# This time we have more columns
+# And we have a mix of categorical and numerical data
+
+df <- data1
+head(df, 10)
+
+# Variable parameters
+clusterNr <- 6
+samples <- 5000
+sampSize <- 200
+
+# CLARA can handle both categorical and numerical data
+# We are only changing the distance function
+# And we don't need to tamper with the data
+cl.res <- clara(df, clusterNr, metric = 'jaccard', samples = samples, pamLike = TRUE)
+```
+
+```{r}
+# Plot of CLARA clustering on 'adult'
+
+fviz_cluster(cl.res, geom = "point", repel = TRUE, show.clust.cent = TRUE, ellipse.type = "t", pointsize = 1, ggtheme = theme_classic()) +
+labs(title= "Clara - Medium Dataset") + 
+xlab("Component 1") +
+ylab("Component 2")
+```
+
+```{r}
+# Apply kmeans
+# Kmeans implementation only works with numerical data
+# So for the categorical/text data we need to transform it
+# Into numbers
+
+# Firstly, set types correctly
+df$workclass <- as.factor(df$workclass)
+df$education <- as.factor(df$education)
+df$marital.status <- as.factor(df$marital.status)
+df$occupation <- as.factor(df$occupation)
+df$relationship <- as.factor(df$relationship)
+df$race <- as.factor(df$race)
+df$sex <- as.factor(df$sex)
+df$native.country <- as.factor(df$native.country)
+df$income <- as.factor(df$income)
+
+# Secondly, using daisy and Gower distance from cluster package
+# We transform the data into a dissimilarity matrix
+# And finally, pipe that into the kmeans function
+gower.dissimilarity.mtrx <- daisy(df, metric = c("gower"))
+dist <- gower.dissimilarity.mtrx
+km.res <- kmeans(dist, 6)
+
+```
+
+```{r}
+# Measure the running time using microbenchmark
+
+result <- microbenchmark(
+  clara(df, clusterNr, metric = 'jaccard', samples = samples, pamLike = TRUE),
+  kmeans(dist, clusterNr),
+  times = 1
+)
+
+print(result)
+boxplot(result, names=c('clara', 'kmeans'))
+```
+
+[Conclusion:]{.underline}
+
+-   As seen above, when data size increases and data types are not only numerical, kmeans struggles to be efficient. (The above chart doesn't include the data augumentation, so there is some more computational time there as well)

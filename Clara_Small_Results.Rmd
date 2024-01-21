@@ -1,0 +1,95 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+2.  Small Dataset - *US Violent Crime*
+
+Dataset info: <https://www.kaggle.com/datasets/mathchi/violent-crime-rates-by-us-state>
+
+Size: 1.35KB (50 x 5)
+
+```{r}
+# Library imports
+
+library(cluster)
+library(factoextra)
+library(utils)
+library(ClusterR)
+library(microbenchmark)
+
+```
+
+```{r}
+# Loading the dataset and preview of the data
+
+data1 <- read.csv('Datasets/US_violent_crime.csv')
+
+dim(data1)
+
+head(data1, 10)
+```
+
+```{r}
+# Find optimal number of clusters
+
+fviz_nbclust(data1, hcut, method = "silhouette")
+```
+
+```{r}
+# Apply CLARA
+
+# Variable parameters
+clusterNr <- 2
+samples <- 25
+sampSize <- 5
+
+cl.res <- clara(data1, clusterNr, metric = 'manhattan', samples = samples, sampsize = sampSize, pamLike = TRUE)
+```
+
+```{r}
+# Plot of CLARA clustering on 'US violent crime'
+
+fviz_cluster(cl.res, data1, geom = "point", repel = TRUE, show.clust.cent = TRUE, ellipse.type = "norm", palette = "Set2", ggtheme = theme_minimal(), axes = c(1,5))
+```
+
+```{r}
+# Trying out the Clara_Medoids function from ClusterR library
+
+#df <- as.data.frame(lapply(data1, as.integer))
+#nrow(df[!apply(df == "?", 1, all),])
+
+df = subset(data1, select = -c(X) )
+
+clR <- Clara_Medoids(df, clusters = clusterNr, distance_metric = 'manhattan', 
+  samples = samples, sample_size = 0.2, swap_phase = TRUE, verbose = F, threads = 1)
+
+fviz_cluster(cl.res, data1, geom = "point", ellipse.type = "norm", main = "Clara (ClusterR)")
+```
+
+```{r}
+# Kmeans plot of same data
+
+km.res <- kmeans(df, clusterNr)
+
+fviz_cluster(km.res, df, geom = "point", ellipse.type = "norm", main = "Kmeans")
+```
+
+```{r}
+# Measure the running time using microbenchmark
+
+result <- microbenchmark(
+  clara(data1, clusterNr, metric = 'manhattan', samples = samples, sampsize = sampSize, pamLike = TRUE),
+  kmeans(df, clusterNr),
+  times = 100
+)
+
+print(result)
+boxplot(result, names=c('clara', 'kmeans'))
+```
+
+[Conclusion:]{.underline}
+
+-   Regarding the actual clusters, the differences are not huge but we can observe that *clara* is better at grouping the points near the border than *kmeans*.
+
+-   There isn't a big difference with execution times between *clara* and *kmeans* when the data is not so large, *clara* being more inefficient on this task. The difference can be seen once the dataset increases in size.

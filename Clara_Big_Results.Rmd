@@ -1,0 +1,161 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+4.  Big dataset - ***Ecommerce Customer Data***
+
+Dataset info: <https://www.kaggle.com/datasets/iabdulw/ecommerce-customer-data>
+
+Size: 115MB, (2019501 x 12)
+
+```{r}
+# Library imports
+
+library(cluster)
+library(factoextra)
+library(utils)
+library(ClusterR)
+library(microbenchmark)
+
+```
+
+```{r}
+# Loading the dataset and preview of the data
+
+data1 <- read.csv('Datasets/ECommerce_consumer behaviour.csv')
+
+dim(data1)
+
+head(data1, 10)
+```
+
+```{r}
+# Adapt data
+df <- data1[,3:10]
+df[is.na(df)] = 0
+
+#data.sample = head(df, 10000)
+#data.sample$department <- as.factor(data.sample$department)
+#data.sample$product_name <- as.factor(data.sample$product_name)
+head(data.sample, 10)
+
+# Find optimal number of clusters
+fviz_nbclust(head(df, 10000), clara, method = "silhouette")
+```
+
+```{r}
+# Apply CLARA
+
+# Variable parameters
+clusterNr <- 2
+samples <- 10000
+sampSize <- 200
+
+cl.res <- clara(df, clusterNr, metric = 'jaccard', samples = samples, pamLike = TRUE)
+```
+
+```{r}
+# Plot of CLARA clustering on 'Ecommerce customer data'
+
+fviz_cluster(cl.res, geom = "point", repel = TRUE, show.clust.cent = TRUE, ellipse.type = "t", pointsize = 1, ggtheme = theme_classic()) +
+labs(title= "Clara - Big Dataset") + 
+xlab("xlab") +
+ylab("ylab")
+```
+
+```{r}
+# Apply kmeans
+
+km.res <- kmeans(df, clusterNr)
+
+fviz_cluster(km.res, df, geom = "point", repel = TRUE, show.clust.cent = TRUE, ellipse.type = "t", pointsize = 1, ggtheme = theme_classic()) +
+labs(title= "Kmeans - Big Dataset") + 
+xlab("Age") +
+ylab("Income")
+```
+
+```{r}
+# Measure the running time using microbenchmark
+
+result <- microbenchmark(
+  clara(df, clusterNr, samples = 3000, pamLike = TRUE),
+  kmeans(df, clusterNr),
+  times = 1
+)
+
+print(result)
+boxplot(result, names=c('clara', 'kmeans'))
+```
+
+-   Again, we can see that numerical data is favorable for kmeans. Let's try using some categorical data and see the differences.
+
+```{r}
+# Apply CLARA again with more data
+# This time we have more columns
+# And we have a mix of categorical and numerical data
+
+df <- data1[,3:ncol(data1)]
+df[is.na(df)] = 0
+head(df, 10)
+
+# Variable parameters
+clusterNr <- 2
+samples <- 5000
+sampSize <- 200
+
+# CLARA can handle both categorical and numerical data
+# We are only changing the distance function
+# And we don't need to tamper with the data
+cl.res <- clara(df, clusterNr, metric = 'jaccard', samples = samples, pamLike = TRUE)
+```
+
+```{r}
+# Plot of CLARA clustering on 'Ecommerce customer data'
+
+fviz_cluster(cl.res, geom = "point", repel = TRUE, show.clust.cent = TRUE, ellipse.type = "t", pointsize = 1, ggtheme = theme_classic()) +
+labs(title= "Clara - Big Dataset") + 
+xlab("Component 1") +
+ylab("Component 2")
+```
+
+```{r}
+# Apply kmeans
+# Kmeans implementation only works with numerical data
+# So for the categorical/text data we need to transform it
+# Into numbers
+
+df_km <- head(df, 30000)
+# Firstly, set types correctly
+df_km$department <- as.factor(df_km$department)
+df_km$product_name <- as.factor(df_km$product_name)
+
+head(df_km, 10)
+
+# Secondly, using daisy and Gower distance from cluster package
+# We transform the data into a dissimilarity matrix
+# And finally, pipe that into the kmeans function
+gower.dissimilarity.mtrx <- daisy(df_km, metric = c("gower"))
+dist <- gower.dissimilarity.mtrx
+
+```
+
+```{r}
+dist <- as.matrix(dist)
+length(dist)
+```
+
+```{r}
+# Measure the running time using microbenchmark
+
+result <- microbenchmark(
+  clara(df, clusterNr, metric = 'jaccard', samples = samples, pamLike = TRUE),
+  kmeans(dist, clusterNr),
+  times = 1
+)
+
+print(result)
+boxplot(result, names=c('clara', 'kmeans'))
+```
+
+[Conclusion:]{.underline}

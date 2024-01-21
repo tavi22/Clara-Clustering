@@ -1,0 +1,63 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+1.  Demo
+
+Testing out the implementation of CLARA in the cluster package from R.
+
+Small comparison between CLARA plot and Kmeans plot on 'cars' dataset.
+
+In the following experiments we will show how CLARA performs on the task of clustering different sized datasets and compare the results to Kmeans. We will compare accuracy of clusters and CPU times.
+
+```{r}
+# Library imports
+
+library(cluster)
+library(factoextra)
+```
+
+```{r}
+# Loading dataset and plotting it
+plot(cars)
+df <- cars
+dim(cars)
+head(cars, 10)
+```
+
+```{r}
+# Apply CLARA
+
+cl.res <- clara(df, 2, samples = 50, pamLike = TRUE)
+
+```
+
+```{r}
+# Show CLARA results
+
+print(cl.res)
+```
+
+```{r}
+# Plot of CLARA clustering on 'cars'
+
+fviz_cluster(cl.res, geom = "point", ellipse.type = "norm")
+```
+
+```{r}
+# Plot of Kmeans clustering on 'cars'
+
+km.res <- kmeans(df, 2)
+fviz_cluster(km.res, df, geom = "point", ellipse.type = "norm")
+```
+
+[Conclusion:]{.underline}
+
+-   Implementation of CLARA from *cluster* package is working.
+
+-   We can plot the results of clustering with package *factoextra.*
+
+-   Later we will use *microbenchmark* package to score the CPU times.
+
+-   Let's see it in action in the next notebooks!
